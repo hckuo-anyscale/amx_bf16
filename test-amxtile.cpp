@@ -108,12 +108,10 @@ int main(){
 	if (!set_tiledata_use())
 		exit(-1);
 	auto start = std::chrono::high_resolution_clock::now();
-
 	auto iterations = 100000;
-
+	init_tile_config (&tile_data);
 	for (int i = 0; i < iterations; i++) {
 		// Load tile configuration 
-		init_tile_config (&tile_data);
 		// Load tile data
 		_tile_loadd(1, res.data(), STRIDE);
 		_tile_loadd(2, src1.data(), STRIDE);
