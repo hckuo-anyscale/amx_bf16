@@ -2,8 +2,7 @@
 #include<stdfloat>
 #include<cstdint>
 #include<vector>
-#include <iterator> // for std::ostream_iterator
-#include <algorithm> // for std::ranges::copy depending on lib support
+#include<chrono>
 #include <cstdlib>
 #ifdef __AVX__
 #include <immintrin.h>
@@ -22,25 +21,26 @@
 #define XFEATURE_XTILECFG       17
 #define XFEATURE_XTILEDATA      18
 using namespace std;
+
 template <typename S>
 ostream& operator<<(ostream& os,
-                    const vector<S>& vector)
+		const vector<S>& vector)
 {
-    // Printing all the elements
-    // using <<
-    int i = 0;
-    int column_size = 32;
-    if (vector.size() == 256) {
-	    column_size = 16;
-    }
-    for (auto element : vector) {
-	if (i > 0 && i % column_size == 0) {
-		cout << endl;
+	// Printing all the elements
+	// using <<
+	int i = 0;
+	int column_size = 32;
+	if (vector.size() == 256) {
+		column_size = 16;
 	}
-        os << element << " ";
-	i++;
-    }
-    return os;
+	for (auto element : vector) {
+		if (i > 0 && i % column_size == 0) {
+			cout << endl;
+		}
+		os << element << " ";
+		i++;
+	}
+	return os;
 }
 
 //Define tile config data structure 
@@ -95,8 +95,8 @@ static void init_tile_config (__tilecfg *tileinfo)
 
 int main(){
 	__tilecfg tile_data = {0};
-	vector<bfloat16_t> src1(16 * 32, 2.0bf16);
-	vector<bfloat16_t> src2(16 * 32, 3.0bf16);
+	vector<bfloat16_t> src1(16 * 32, 1.0bf16);
+	vector<bfloat16_t> src2(16 * 32, 1.0bf16);
 	vector<float32_t> res(16 * 16, 0.0f32);
 
 	cout << src1 << endl;
@@ -107,21 +107,27 @@ int main(){
 	// Request permission to linux kernel to run AMX 
 	if (!set_tiledata_use())
 		exit(-1);
+	auto start = std::chrono::high_resolution_clock::now();
 
-	// Load tile configuration 
-	init_tile_config (&tile_data);
+	auto iterations = 100000;
 
+	for (int i = 0; i < iterations; i++) {
+		// Load tile configuration 
+		init_tile_config (&tile_data);
+		// Load tile data
+		_tile_loadd(1, res.data(), STRIDE);
+		_tile_loadd(2, src1.data(), STRIDE);
+		_tile_loadd(3, src2.data(), STRIDE);
+		// Compute dot-product of bytes in tiles 
+		_tile_dpbf16ps (1, 2, 3);
+		// Store the tile data to memory
+		_tile_stored (1, res.data(), STRIDE);
+	}
+	auto end = std::chrono::high_resolution_clock::now();
+	auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
 
-	// Load tile data
-	_tile_loadd(1, res.data(), STRIDE);
-	_tile_loadd(2, src1.data(), STRIDE);
-	_tile_loadd(3, src2.data(), STRIDE);
-	
-	// Compute dot-product of bytes in tiles 
-	_tile_dpbf16ps (1, 2, 3);
-
-	// Store the tile data to memory
-	_tile_stored (1, res.data(), STRIDE);
+	cout << "Time taken by function: "
+		<< duration.count()/iterations << " nanoseconds" << endl;
 	cout << "===========" << endl;
 	cout << res << endl;
 	// Release the tile configuration to return to the init state, 
