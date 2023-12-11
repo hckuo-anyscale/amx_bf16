@@ -139,8 +139,8 @@ int main(){
 	auto iterations = 10000;
 	init_tile_config (&tile_data);
 	for (int i = 0; i < iterations; i++) {
-		//tile_dp(src1.data(), src2.data(), res.data());
-		slow_dp(src1.data(), src2.data(), res.data());
+		tile_dp(src1.data(), src2.data(), res.data());
+		//slow_dp(src1.data(), src2.data(), res.data());
 	}
 	auto end = std::chrono::high_resolution_clock::now();
 	auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
